@@ -52,7 +52,7 @@ resource "azurerm_network_security_group" "main" {
         protocol                   = "Tcp"
         source_port_range          = "*"
         destination_port_range     = "22"
-        source_address_prefix      = module.whitelist.vpn_ops_ipv4
+        source_address_prefixes    = module.whitelist.vpn_ops_ipv4
         destination_address_prefix = "*"
     }
 
