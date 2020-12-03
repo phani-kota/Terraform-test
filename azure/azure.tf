@@ -35,6 +35,10 @@ resource "azurerm_public_ip" "main" {
     }
 }
 
+module "whitelist" {
+  source = "git::ssh://git@github.com/AppDirect/terraform-modules//whitelist_ips"
+}
+
 resource "azurerm_network_security_group" "main" {
     name                = "azureNetworkSecurityGroup"
     location            = "Canada Central"
@@ -48,7 +52,7 @@ resource "azurerm_network_security_group" "main" {
         protocol                   = "Tcp"
         source_port_range          = "*"
         destination_port_range     = "22"
-        source_address_prefix      = "*"
+        source_address_prefix      = module.whitelist.vpn_ops_ipv4
         destination_address_prefix = "*"
     }
 
@@ -133,6 +137,8 @@ resource "azurerm_linux_virtual_machine" "vm" {
         username       = "azureuser"
         public_key     = tls_private_key.ssh.public_key_openssh
     }
+    lifecycle {
+        ignore_changes = [ admin_ssh_key ]
 
     boot_diagnostics {
         storage_account_uri = azurerm_storage_account.main.primary_blob_endpoint
@@ -143,6 +149,11 @@ resource "azurerm_linux_virtual_machine" "vm" {
     }
 }
 
+resource "azurerm_private_dns_zone" "azuredns" {
+  name                = "terraformtrain.com"
+  resource_group_name = azurerm_resource_group.main.name
+}
+    
 resource "azurerm_kubernetes_cluster" "kubernetes" {
   name                = "azure-k8s"
   location            = azurerm_resource_group.main.location
