@@ -22,6 +22,7 @@ resource "azurerm_subnet" "main" {
     resource_group_name  = azurerm_resource_group.main.name
     virtual_network_name = azurerm_virtual_network.main.name
     address_prefixes     = ["10.0.1.0/24"]
+    enforce_private_link_endpoint_network_policies = true
 }
 
 resource "azurerm_public_ip" "main" {
@@ -149,11 +150,6 @@ resource "azurerm_linux_virtual_machine" "vm" {
         environment = "Azure terraform"
     }
 }
-
-resource "azurerm_private_dns_zone" "azuredns" {
-  name                = "terraformtrain.com"
-  resource_group_name = azurerm_resource_group.main.name
-}
     
 resource "azurerm_kubernetes_cluster" "kubernetes" {
   name                = "azure-k8s"
@@ -220,4 +216,23 @@ resource "azurerm_sql_firewall_rule" "main" {
   server_name         = azurerm_sql_server.db.name
   start_ip_address    = "10.0.1.1"
   end_ip_address      = "10.0.1.254"
+}
+
+resource "azurerm_private_endpoint" "privatelink" {
+  name                = "sql-private-endpoint"
+  location            = "Canada Central"
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.main.id
+
+  private_service_connection {
+    name                           = "sql-privateserviceconnection"
+    private_connection_resource_id = azurerm_sql_server.db.id
+    subresource_names              = [ "sqlServer" ]
+    is_manual_connection           = false
+  }
+}
+
+resource "azurerm_private_dns_zone" "azuredns" {
+  name                = "sql.database.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
 }
