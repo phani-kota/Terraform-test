@@ -218,7 +218,8 @@ resource "azurerm_sql_firewall_rule" "main" {
   end_ip_address      = "10.0.1.254"
 }
 
-resource "azurerm_private_endpoint" "privatelink" {
+
+resource "azurerm_private_endpoint" "plink" {
   name                = "sql-private-endpoint"
   location            = "Canada Central"
   resource_group_name = azurerm_resource_group.main.name
@@ -233,6 +234,33 @@ resource "azurerm_private_endpoint" "privatelink" {
 }
 
 resource "azurerm_private_dns_zone" "azuredns" {
-  name                = "sql.database.windows.net"
-  resource_group_name = azurerm_resource_group.main.name
+  name                = "privatelink.database.windows.net"
+  resource_group_name = azurerm_subnet.main.resource_group_name
 }
+
+
+data "azurerm_private_endpoint_connection" "plinkconnection" {
+  name                = azurerm_private_endpoint.plink.name
+  resource_group_name = azurerm_private_endpoint.plink.resource_group_name
+}
+
+resource "azurerm_private_dns_a_record" "private_endpoint_a_record" {
+  name                = azurerm_sql_server.db.name
+  zone_name           = azurerm_private_dns_zone.azuredns.name
+  resource_group_name = azurerm_private_endpoint.plink.resource_group_name
+  ttl                 = 300
+  records             = [ data.azurerm_private_endpoint_connection.plinkconnection.private_service_connection.0.private_ip_address ]
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "zone_to_vnet_link" {
+  name                  = "test"
+  resource_group_name   = azurerm_private_endpoint.plink.resource_group_name
+  private_dns_zone_name = azurerm_private_dns_zone.azuredns.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+output "private_link_endpoint_ip" {
+  value = data.azurerm_private_endpoint_connection.plinkconnection.private_service_connection.0.private_ip_address
+}
+
+
